@@ -70,7 +70,7 @@ function App() {
     let gameOver = false
     let dead = false
     let deathSoundPlayed = false
-    let resetRequested = false
+    
 
     let animationId
     let gameOverTimer
@@ -158,7 +158,7 @@ function App() {
         touchY >= resetButtonY &&
         touchY <= resetButtonY + resetButtonHeight
       ) {
-        resetRequested = true
+        resetGame()
         return
       }
 
@@ -462,39 +462,6 @@ function App() {
 
         pipeTopHeight =
           100 + Math.random() * 200
-      }
-
-
-      if (resetRequested) {
-        resetRequested = false
-
-        gameStarted = false
-        gameOver = false
-        dead = false
-        deathSoundPlayed = false
-
-        birdY.current = 100
-        velocity = 0
-
-        pipeX.current = 400
-        pipeTopHeight = 200
-
-        pipeSpeed = 2.5
-        gravity = 0.2
-        jumpPower = -5
-
-        groundX = 0
-
-        countRef.current = 0
-        setCount(0)
-
-        birdFrame = 0
-        frameCount = 0
-
-        birdImage.src = bird0
-
-        clearTimeout(gameOverTimer)
-        gameOverTimer = null
       }
 
       // صفحه Game Over
