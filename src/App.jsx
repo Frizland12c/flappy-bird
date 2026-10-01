@@ -70,9 +70,16 @@ function App() {
     let gameOver = false
     let dead = false
     let deathSoundPlayed = false
+    let resetRequested = false
 
     let animationId
     let gameOverTimer
+
+    const resetButtonX = 130
+    const resetButtonY = 360
+    const resetButtonWidth = 140
+    const resetButtonHeight = 50
+
 
     const jump = () => {
       if (!gameStarted) {
@@ -91,15 +98,74 @@ function App() {
 
     const handleKeyDown = (e) => {
       if (e.code === "Space") {
-        // شروع بازی
+
+        if (gameOver) {
+          resetGame()
+          return
+        }
+
         jump()
       }
     }
 
+    const resetGame = () => {
+      gameStarted = false
+      gameOver = false
+      dead = false
+      deathSoundPlayed = false
+
+      birdY.current = 100
+      velocity = 0
+
+      pipeX.current = 400
+      pipeTopHeight = 200
+
+      pipeSpeed = 2.5
+      gravity = 0.2
+      jumpPower = -5
+
+      groundX = 0
+
+      countRef.current = 0
+      setCount(0)
+
+      birdFrame = 0
+      frameCount = 0
+
+      birdImage.src = bird0
+
+      clearTimeout(gameOverTimer)
+      gameOverTimer = null
+
+      gameLoop()
+    }
+
     const handleTouch = (e) => {
       e.preventDefault()
+
+      const rect = canvas.getBoundingClientRect()
+
+      const touchX =
+        e.touches[0].clientX - rect.left
+
+      const touchY =
+        e.touches[0].clientY - rect.top
+
+      if (
+        gameOver &&
+        touchX >= resetButtonX &&
+        touchX <= resetButtonX + resetButtonWidth &&
+        touchY >= resetButtonY &&
+        touchY <= resetButtonY + resetButtonHeight
+      ) {
+        resetRequested = true
+        return
+      }
+
       jump()
     }
+
+
 
     window.addEventListener(
       "keydown",
@@ -398,6 +464,39 @@ function App() {
           100 + Math.random() * 200
       }
 
+
+      if (resetRequested) {
+        resetRequested = false
+
+        gameStarted = false
+        gameOver = false
+        dead = false
+        deathSoundPlayed = false
+
+        birdY.current = 100
+        velocity = 0
+
+        pipeX.current = 400
+        pipeTopHeight = 200
+
+        pipeSpeed = 2.5
+        gravity = 0.2
+        jumpPower = -5
+
+        groundX = 0
+
+        countRef.current = 0
+        setCount(0)
+
+        birdFrame = 0
+        frameCount = 0
+
+        birdImage.src = bird0
+
+        clearTimeout(gameOverTimer)
+        gameOverTimer = null
+      }
+
       // صفحه Game Over
       if (gameOver) {
 
@@ -438,6 +537,24 @@ function App() {
           canvas.width / 2,
           330
         )
+        ctx.fillStyle = "white"
+
+        ctx.fillRect(
+          resetButtonX,
+          resetButtonY,
+          resetButtonWidth,
+          resetButtonHeight
+        )
+
+        ctx.font = "24px Arial"
+        ctx.fillStyle = "black"
+
+        ctx.fillText(
+          "RESET",
+          canvas.width / 2,
+          resetButtonY + 33
+        )
+
       }
 
       // ادامه Game Loop
