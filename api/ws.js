@@ -16,6 +16,8 @@ const wss = new WebSocketServer({
   server
 })
 
+const connections = new Map()
+
 function createRoomCode() {
   return Math.random()
     .toString(36)
@@ -46,6 +48,8 @@ wss.on('connection', (socket) => {
       socket.roomCode = roomCode
       socket.playerNumber = 1
 
+      connections.set(`${roomCode}:1`, socket)
+
       socket.send(roomCode)
 
       return
@@ -75,7 +79,16 @@ wss.on('connection', (socket) => {
       socket.roomCode = roomCode
       socket.playerNumber = 2
 
+      connections.set(`${roomCode}:2`, socket)
+
       socket.send('joined_room')
+
+      const player1 = connections.get(`${roomCode}:1`)
+
+      if (player1) {
+        player1.send('game_ready')
+        socket.send('game_ready')
+      }
 
       return
     }
@@ -95,9 +108,17 @@ wss.on('connection', (socket) => {
         return
       }
 
-      console.log(
-        `Player ${socket.playerNumber} jumped in room ${roomCode}`
-      )
+      const otherPlayerNumber =
+        socket.playerNumber === 1 ? 2 : 1
+
+      const otherPlayer =
+        connections.get(
+          `${roomCode}:${otherPlayerNumber}`
+        )
+
+      if (otherPlayer) {
+        otherPlayer.send('player_jump')
+      }
 
       return
     }
@@ -107,10 +128,15 @@ wss.on('connection', (socket) => {
   socket.on('close', async () => {
 
     const roomCode = socket.roomCode
+    const playerNumber = socket.playerNumber
 
-    if (!roomCode) {
+    if (!roomCode || !playerNumber) {
       return
     }
+
+    connections.delete(
+      `${roomCode}:${playerNumber}`
+    )
 
     const room = await redis.get(`room:${roomCode}`)
 
@@ -118,7 +144,14 @@ wss.on('connection', (socket) => {
       return
     }
 
-    if (socket.playerNumber === 1) {
+    if (playerNumber === 1) {
+
+      const player2 =
+        connections.get(`${roomCode}:2`)
+
+      if (player2) {
+        player2.send('player_left')
+      }
 
       await redis.del(`room:${roomCode}`)
 
@@ -129,11 +162,21 @@ wss.on('connection', (socket) => {
       return
     }
 
-    if (socket.playerNumber === 2) {
+    if (playerNumber === 2) {
 
       room.player2 = false
 
-      await redis.set(`room:${roomCode}`, room)
+      await redis.set(
+        `room:${roomCode}`,
+        room
+      )
+
+      const player1 =
+        connections.get(`${roomCode}:1`)
+
+      if (player1) {
+        player1.send('player_left')
+      }
 
       console.log(
         `Player 2 left room ${roomCode}`
