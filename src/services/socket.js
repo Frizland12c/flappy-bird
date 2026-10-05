@@ -7,7 +7,7 @@ const maxReconnectDelay = 10000
 function connect() {
 
   socket = new WebSocket(
-    'wss://flappy-bird-y45l.onrender.com/ws'
+    'wss://flappy-bird-five-kappa.vercel.app/api/ws'
   )
 
   socket.onopen = () => {
