@@ -1,15 +1,35 @@
+import http from 'http'
 import { WebSocketServer } from 'ws'
 
 const port = process.env.PORT || 8080
 
-const wss = new WebSocketServer({
-    port: port
+const server = http.createServer((req, res) => {
+
+    if (req.url === '/') {
+
+        res.writeHead(200, {
+            'Content-Type': 'text/plain'
+        })
+
+        res.end('Flappy Bird WebSocket Server is running')
+
+        return
+    }
+
+    res.writeHead(404)
+    res.end()
+
 })
 
-console.log(`WebSocket server running on port ${port}`)
+const wss = new WebSocketServer({
+    server: server
+})
+
+console.log(
+    `Starting server on port ${port}`
+)
 
 const rooms = {}
-
 
 function createRoomCode() {
 
@@ -20,79 +40,54 @@ function createRoomCode() {
 
 }
 
-
 wss.on('connection', (socket) => {
 
     console.log('Client connected')
-
 
     socket.on('message', (message) => {
 
         const data = message.toString()
 
-        console.log('Message from client:', data)
-
-
-        /*
-          CREATE ROOM
-        */
+        console.log(
+            'Message from client:',
+            data
+        )
 
         if (data === 'create_room') {
 
             const roomCode =
                 createRoomCode()
 
-
             rooms[roomCode] = {
 
                 player1: socket,
-
                 player2: null
 
             }
 
-
             socket.roomCode = roomCode
-
             socket.playerNumber = 1
-
 
             console.log(
                 'Room created:',
                 roomCode
             )
 
-
             socket.send(roomCode)
 
         }
-
-
-        /*
-          JOIN ROOM
-        */
 
         if (data.startsWith('join_room:')) {
 
             const roomCode =
                 data.split(':')[1]
 
-
             console.log(
                 'Join request for room:',
                 roomCode
             )
 
-
-            /*
-              Room وجود ندارد
-            */
-
             if (!rooms[roomCode]) {
-
-                console.log(
-                    'Room not found'
-                )
 
                 socket.send(
                     'room_not_found'
@@ -100,18 +95,9 @@ wss.on('connection', (socket) => {
 
             }
 
-
-            /*
-              Room پر است
-            */
-
             else if (
                 rooms[roomCode].player2
             ) {
-
-                console.log(
-                    'Room is full'
-                )
 
                 socket.send(
                     'room_full'
@@ -119,46 +105,28 @@ wss.on('connection', (socket) => {
 
             }
 
-
-            /*
-              ورود Player 2
-            */
-
             else {
 
                 rooms[roomCode].player2 =
                     socket
-
 
                 socket.roomCode =
                     roomCode
 
                 socket.playerNumber = 2
 
-
                 console.log(
                     'Player 2 joined:',
                     roomCode
                 )
 
-
-                /*
-                  به Player 2
-                */
-
                 socket.send(
                     'joined_room'
                 )
 
-
-                /*
-                  بازی برای هر دو آماده است
-                */
-
                 rooms[roomCode]
                     .player1
                     .send('game_ready')
-
 
                 rooms[roomCode]
                     .player2
@@ -168,35 +136,21 @@ wss.on('connection', (socket) => {
 
         }
 
-
-        /*
-          PLAYER JUMP
-        */
-
         if (data === 'jump') {
 
             const roomCode =
                 socket.roomCode
 
-
             if (!roomCode) {
                 return
             }
 
-
             const room =
                 rooms[roomCode]
-
 
             if (!room) {
                 return
             }
-
-
-            /*
-              اگر Player 1 پرید
-              برای Player 2 بفرست
-            */
 
             if (
                 socket.playerNumber === 1
@@ -211,12 +165,6 @@ wss.on('connection', (socket) => {
                 }
 
             }
-
-
-            /*
-              اگر Player 2 پرید
-              برای Player 1 بفرست
-            */
 
             if (
                 socket.playerNumber === 2
@@ -236,39 +184,25 @@ wss.on('connection', (socket) => {
 
     })
 
-
-    /*
-      قطع شدن اتصال
-    */
-
     socket.on('close', () => {
 
         console.log(
             'Client disconnected'
         )
 
-
         const roomCode =
             socket.roomCode
-
 
         if (!roomCode) {
             return
         }
 
-
         const room =
             rooms[roomCode]
-
 
         if (!room) {
             return
         }
-
-
-        /*
-          اگر Player 1 قطع شد
-        */
 
         if (
             room.player1 === socket
@@ -286,17 +220,11 @@ wss.on('connection', (socket) => {
 
         }
 
-
-        /*
-          اگر Player 2 قطع شد
-        */
-
         else if (
             room.player2 === socket
         ) {
 
             room.player2 = null
-
 
             if (room.player1) {
 
@@ -311,3 +239,15 @@ wss.on('connection', (socket) => {
     })
 
 })
+
+server.listen(
+    port,
+    '0.0.0.0',
+    () => {
+
+        console.log(
+            `HTTP/WebSocket server running on port ${port}`
+        )
+
+    }
+)
