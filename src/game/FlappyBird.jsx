@@ -39,63 +39,68 @@ const birdDeadImages = {
 }
 
 function FlappyBird({ selectedBird }) {
+
   const [count, setCount] = useState(0)
+
   const canvasRef = useRef(null)
+
   const countRef = useRef(0)
 
   const birdX = 50
+
   const birdY = useRef(100)
 
   const pipeX = useRef(400)
+
   const pipeWidth = 60
-  const pipeHeight = 200
 
-  const birdImage = new Image()
-  birdImage.src = birdImages[selectedBird][0]
+  const canvasWidth = 400
 
-  const pipeBImage = new Image()
-  pipeBImage.src = pipeB
+  const canvasHeight = 600
 
-  const pipePImage = new Image()
-  pipePImage.src = pipeP
-
-  const backgroundImage = new Image()
-  backgroundImage.src = background
-
-  const groundImage = new Image()
-  groundImage.src = groundImag
-
-  const birdFrames = birdImages[selectedBird]
+  const pipeGap = 200
 
   useEffect(() => {
+
     console.log(selectedBird)
 
     const canvas = canvasRef.current
-    const ctx = canvas.getContext("2d")
+
+    const ctx = canvas.getContext('2d')
 
     const jumpAudio = new Audio(jumpSound)
+
     const deadAudio = new Audio(deadSound)
 
-    // Best Score از حافظه مرورگر
     let bestScore =
-      Number(localStorage.getItem("bestScore")) || 0
+      Number(localStorage.getItem('bestScore')) || 0
 
     let velocity = 0
+
     let gravity = 0.2
+
     let birdFrame = 0
+
     let frameCount = 0
+
     let pipeSpeed = 2.5
+
     let pipeTopHeight = 200
+
     let groundX = 0
+
     let jumpPower = -5
 
     let gameStarted = false
+
     let gameOver = false
+
     let dead = false
+
     let deathSoundPlayed = false
 
-
     let animationId
+
     let gameOverTimer
 
     const resetButtonX = 130
@@ -103,70 +108,163 @@ function FlappyBird({ selectedBird }) {
     const resetButtonWidth = 140
     const resetButtonHeight = 50
 
+    let birdWidth = 40
+    let birdHeight = 40
+
+    if (selectedBird === 'eagle') {
+
+      birdWidth = 50
+      birdHeight = 50
+
+    }
+
+    /*
+      PRELOAD BIRD FRAMES
+    */
+
+    const birdFrames = birdImages[selectedBird] || birdImages.normal
+
+    const loadedBirdFrames = birdFrames.map((src) => {
+
+      const image = new Image()
+
+      image.src = src
+
+      return image
+
+    })
+
+    const birdDeadImage = new Image()
+
+    birdDeadImage.src =
+      birdDeadImages[selectedBird] ||
+      birdDeadImages.normal
+
+    /*
+      PRELOAD GAME IMAGES
+    */
+
+    const pipeBImage = new Image()
+    pipeBImage.src = pipeB
+
+    const pipePImage = new Image()
+    pipePImage.src = pipeP
+
+    const backgroundImage = new Image()
+    backgroundImage.src = background
+
+    const groundImage = new Image()
+    groundImage.src = groundImag
+
+    /*
+      Jump
+    */
 
     const jump = () => {
+
       if (!gameStarted) {
+
         gameStarted = true
 
         return
+
       }
 
-      if (birdY.current > 0 && !dead) {
+      if (
+        birdY.current > 0 &&
+        !dead
+      ) {
+
         velocity = jumpPower
 
         jumpAudio.currentTime = 0
-        jumpAudio.play()
+
+        jumpAudio.play().catch(() => {})
+
       }
+
     }
 
-    const handleKeyDown = (e) => {
-      if (e.code === "Space") {
-
-        if (gameOver) {
-          resetGame()
-          return
-        }
-
-        jump()
-      }
-    }
+    /*
+      Reset
+    */
 
     const resetGame = () => {
+
       gameStarted = false
+
       gameOver = false
+
       dead = false
+
       deathSoundPlayed = false
 
       birdY.current = 100
+
       velocity = 0
 
       pipeX.current = 400
+
       pipeTopHeight = 200
 
       pipeSpeed = 2.5
+
       gravity = 0.2
+
       jumpPower = -5
 
       groundX = 0
 
       countRef.current = 0
+
       setCount(0)
 
       birdFrame = 0
+
       frameCount = 0
 
-      birdImage.src = birdImages[selectedBird][0]
-
       clearTimeout(gameOverTimer)
+
       gameOverTimer = null
 
       gameLoop()
+
     }
 
+    /*
+      Keyboard
+    */
+
+    const handleKeyDown = (e) => {
+
+      if (e.code === 'Space') {
+
+        e.preventDefault()
+
+        if (gameOver) {
+
+          resetGame()
+
+          return
+
+        }
+
+        jump()
+
+      }
+
+    }
+
+    /*
+      Touch
+    */
+
     const handleTouch = (e) => {
+
       e.preventDefault()
 
-      const rect = canvas.getBoundingClientRect()
+      const rect =
+        canvas.getBoundingClientRect()
 
       const touchX =
         e.touches[0].clientX - rect.left
@@ -177,79 +275,105 @@ function FlappyBird({ selectedBird }) {
       if (
         gameOver &&
         touchX >= resetButtonX &&
-        touchX <= resetButtonX + resetButtonWidth &&
+        touchX <=
+        resetButtonX + resetButtonWidth &&
         touchY >= resetButtonY &&
-        touchY <= resetButtonY + resetButtonHeight
+        touchY <=
+        resetButtonY + resetButtonHeight
       ) {
+
         resetGame()
+
         return
+
       }
 
       jump()
+
     }
 
-
-
     window.addEventListener(
-      "keydown",
+      'keydown',
       handleKeyDown
     )
 
     canvas.addEventListener(
-      "touchstart",
+      'touchstart',
       handleTouch
     )
 
-    // ذخیره Best Score
+    /*
+      Save Best Score
+    */
+
     function saveBestScore() {
-      if (countRef.current > bestScore) {
-        bestScore = countRef.current
+
+      if (
+        countRef.current >
+        bestScore
+      ) {
+
+        bestScore =
+          countRef.current
 
         localStorage.setItem(
-          "bestScore",
+          'bestScore',
           bestScore
         )
+
       }
+
     }
 
-    // نمایش Game Over با یک ثانیه تأخیر
+    /*
+      Game Over Timer
+    */
+
     function startGameOverTimer() {
+
       if (!gameOverTimer) {
-        gameOverTimer = setTimeout(() => {
-          gameOver = true
-        }, 1000)
+
+        gameOverTimer =
+          setTimeout(() => {
+
+            gameOver = true
+
+          }, 1000)
+
       }
+
     }
 
-    let birdWidth = 40
-    let birdHeight = 40
-
-    if (selectedBird === 'eagle') {
-      birdWidth = 50
-      birdHeight = 50
-    }
+    /*
+      Game Loop
+    */
 
     function gameLoop() {
 
-      frameCount = frameCount + 1
+      frameCount++
 
-      // انیمیشن پرنده
+      /*
+        Bird Animation
+      */
+
       if (frameCount >= 8) {
-        birdFrame = birdFrame + 1
 
-        if (birdFrame == 4) {
+        birdFrame++
+
+        if (birdFrame >= 4) {
+
           birdFrame = 0
+
         }
 
         frameCount = 0
 
-        if (gameStarted && !dead) {
-          birdImage.src =
-            birdFrames[birdFrame]
-        }
       }
 
-      // پاک کردن Canvas
+      /*
+        Clear Canvas
+      */
+
       ctx.clearRect(
         0,
         0,
@@ -257,7 +381,10 @@ function FlappyBird({ selectedBird }) {
         canvas.height
       )
 
-      // Background
+      /*
+        Background
+      */
+
       ctx.drawImage(
         backgroundImage,
         0,
@@ -266,7 +393,10 @@ function FlappyBird({ selectedBird }) {
         canvas.height
       )
 
-      // لوله بالا
+      /*
+        Pipe Top
+      */
+
       ctx.drawImage(
         pipeBImage,
         pipeX.current,
@@ -275,17 +405,23 @@ function FlappyBird({ selectedBird }) {
         pipeTopHeight
       )
 
-      // لوله پایین
+      /*
+        Pipe Bottom
+      */
+
       ctx.drawImage(
         pipePImage,
         pipeX.current,
-        pipeTopHeight + 200,
+        pipeTopHeight + pipeGap,
         pipeWidth,
         canvas.height -
-        (pipeTopHeight + 200)
+        (pipeTopHeight + pipeGap)
       )
 
-      // زمین
+      /*
+        Ground
+      */
+
       ctx.drawImage(
         groundImage,
         groundX,
@@ -302,28 +438,62 @@ function FlappyBird({ selectedBird }) {
         50
       )
 
-      // حرکت زمین
-      if (gameStarted && !dead) {
-        groundX = groundX - 2.5
+      /*
+        Ground Movement
+      */
+
+      if (
+        gameStarted &&
+        !dead
+      ) {
+
+        groundX -= 2.5
+
       }
 
-      if (groundX <= -canvas.width) {
+      if (
+        groundX <= -canvas.width
+      ) {
+
         groundX = 0
+
       }
 
-      // پرنده
-      ctx.drawImage(
-        birdImage,
-        birdX,
-        birdY.current,
-        birdWidth,
-        birdHeight
-      )
+      /*
+        Bird
+      */
 
-      // Score
-      ctx.font = "30px Arial"
-      ctx.fillStyle = "white"
-      ctx.textAlign = "left"
+      if (dead) {
+
+        ctx.drawImage(
+          birdDeadImage,
+          birdX,
+          birdY.current,
+          birdWidth,
+          birdHeight
+        )
+
+      } else {
+
+        ctx.drawImage(
+          loadedBirdFrames[birdFrame],
+          birdX,
+          birdY.current,
+          birdWidth,
+          birdHeight
+        )
+
+      }
+
+      /*
+        Score
+      */
+
+      ctx.font = '30px Arial'
+
+      ctx.fillStyle = 'white'
+
+      ctx.textAlign = 'left'
 
       ctx.fillText(
         countRef.current,
@@ -331,131 +501,175 @@ function FlappyBird({ selectedBird }) {
         50
       )
 
-      // صفحه شروع
+      /*
+        Start Screen
+      */
+
       if (!gameStarted) {
-        ctx.font = "24px Arial"
-        ctx.fillStyle = "white"
-        ctx.textAlign = "center"
+
+        ctx.font = '24px Arial'
+
+        ctx.fillStyle = 'white'
+
+        ctx.textAlign = 'center'
 
         ctx.fillText(
-          "PRESS SPACE TO START",
+          'PRESS SPACE TO START',
           canvas.width / 2,
           300
         )
+
       }
 
-      // برخورد با لوله‌ها
+      /*
+        Collision With Pipe
+      */
+
       if (
         gameStarted &&
         !dead &&
-        birdX + 40 > pipeX.current &&
-        birdX < pipeX.current + pipeWidth
+        birdX + birdWidth >
+        pipeX.current &&
+        birdX <
+        pipeX.current + pipeWidth
       ) {
 
-        // برخورد با لوله بالا
         if (
-          birdY.current < pipeTopHeight
+          birdY.current <
+          pipeTopHeight
         ) {
-          console.log("بالا برخورد کرد")
+
+          console.log(
+            'بالا برخورد کرد'
+          )
 
           dead = true
-          birdImage.src = birdDeadImages[selectedBird]
 
           saveBestScore()
 
           if (!deathSoundPlayed) {
+
             deadAudio.currentTime = 0
-            deadAudio.play()
+
+            deadAudio.play().catch(() => {})
 
             deathSoundPlayed = true
+
           }
 
           startGameOverTimer()
+
         }
 
-        // برخورد با لوله پایین
         if (
-          birdY.current + 40 >
-          pipeTopHeight + 200
+          birdY.current +
+          birdHeight >
+          pipeTopHeight + pipeGap
         ) {
-          console.log("پایین برخورد کرد")
+
+          console.log(
+            'پایین برخورد کرد'
+          )
 
           dead = true
-          birdImage.src = birdDeadImages[selectedBird]
 
           saveBestScore()
 
           if (!deathSoundPlayed) {
+
             deadAudio.currentTime = 0
-            deadAudio.play()
+
+            deadAudio.play().catch(() => {})
 
             deathSoundPlayed = true
+
           }
 
           startGameOverTimer()
+
         }
+
       }
 
-      // حرکت لوله
-      if (gameStarted && !dead) {
-        pipeX.current =
-          pipeX.current - pipeSpeed
+      /*
+        Pipe Movement
+      */
+
+      if (
+        gameStarted &&
+        !dead
+      ) {
+
+        pipeX.current -=
+          pipeSpeed
+
       }
 
-      // Gravity
-      // حتی بعد از مرگ هم ادامه پیدا می‌کند
-      // تا پرنده یک ثانیه سقوط کند
+      /*
+        Gravity
+      */
+
       if (
         gameStarted &&
         !gameOver
       ) {
 
-        if (birdY.current < 560) {
+        if (
+          birdY.current <
+          560
+        ) {
 
-          velocity =
-            velocity + gravity
+          velocity += gravity
 
-          birdY.current =
-            birdY.current + velocity
+          birdY.current +=
+            velocity
 
         } else {
 
           birdY.current = 560
 
-          birdImage.src = birdDeadImages[selectedBird]
-
-          ctx.drawImage(
-            birdImage,
-            birdX,
-            birdY.current,
-            birdWidth,
-            birdHeight
-          )
-
           if (!dead) {
+
             dead = true
 
             saveBestScore()
 
             if (!deathSoundPlayed) {
+
               deadAudio.currentTime = 0
-              deadAudio.play()
+
+              deadAudio.play().catch(() => {})
 
               deathSoundPlayed = true
+
             }
 
             startGameOverTimer()
+
           }
+
         }
+
       }
 
-      // برخورد با سقف
-      if (birdY.current < 0) {
+      /*
+        Ceiling
+      */
+
+      if (
+        birdY.current < 0
+      ) {
+
         birdY.current = 0
+
         velocity = 0
+
       }
 
-      // ساخت لوله جدید
+      /*
+        New Pipe
+      */
+
       if (
         gameStarted &&
         !dead &&
@@ -468,39 +682,46 @@ function FlappyBird({ selectedBird }) {
 
           countRef.current = next
 
-          // هر 5 امتیاز سخت‌تر شود
-          if (next % 5 === 0) {
-            pipeSpeed =
-              pipeSpeed + 0.5
+          if (
+            next % 5 === 0
+          ) {
 
-            jumpPower =
-              jumpPower - 0.1
+            pipeSpeed += 0.5
 
-            gravity =
-              gravity + 0.02
+            jumpPower -= 0.1
+
+            gravity += 0.02
+
           }
 
-          // افزایش تدریجی سرعت در 5 امتیاز اول
-          if (countRef.current < 5) {
-            pipeSpeed =
-              pipeSpeed + 0.2
+          if (
+            countRef.current < 5
+          ) {
+
+            pipeSpeed += 0.2
+
           }
 
           return next
+
         })
 
         pipeX.current = 400
 
         pipeTopHeight =
-          100 + Math.random() * 200
+          100 +
+          Math.random() * 200
+
       }
 
-      // صفحه Game Over
+      /*
+        Game Over
+      */
+
       if (gameOver) {
 
-        // لایه تار روی بازی
         ctx.fillStyle =
-          "rgba(0, 0, 0, 0.45)"
+          'rgba(0, 0, 0, 0.45)'
 
         ctx.fillRect(
           0,
@@ -509,19 +730,19 @@ function FlappyBird({ selectedBird }) {
           canvas.height
         )
 
-        // GAME OVER
-        ctx.font = "38px Arial"
-        ctx.fillStyle = "white"
-        ctx.textAlign = "center"
+        ctx.font = '38px Arial'
+
+        ctx.fillStyle = 'white'
+
+        ctx.textAlign = 'center'
 
         ctx.fillText(
-          "GAME OVER",
+          'GAME OVER',
           canvas.width / 2,
           240
         )
 
-        // Score
-        ctx.font = "26px Arial"
+        ctx.font = '26px Arial'
 
         ctx.fillText(
           `Score: ${countRef.current}`,
@@ -529,13 +750,13 @@ function FlappyBird({ selectedBird }) {
           290
         )
 
-        // Best Score
         ctx.fillText(
           `Best: ${bestScore}`,
           canvas.width / 2,
           330
         )
-        ctx.fillStyle = "white"
+
+        ctx.fillStyle = 'white'
 
         ctx.fillRect(
           resetButtonX,
@@ -544,34 +765,52 @@ function FlappyBird({ selectedBird }) {
           resetButtonHeight
         )
 
-        ctx.font = "24px Arial"
-        ctx.fillStyle = "black"
+        ctx.font = '24px Arial'
+
+        ctx.fillStyle = 'black'
 
         ctx.fillText(
-          "RESET",
+          'RESET',
           canvas.width / 2,
           resetButtonY + 33
         )
 
       }
 
-      // ادامه Game Loop
+      /*
+        Continue Game Loop
+      */
+
       if (!gameOver) {
+
         animationId =
-          requestAnimationFrame(gameLoop)
+          requestAnimationFrame(
+            gameLoop
+          )
+
       }
+
     }
+
+    /*
+      Start
+    */
 
     gameLoop()
 
+    /*
+      Cleanup
+    */
+
     return () => {
+
       window.removeEventListener(
-        "keydown",
+        'keydown',
         handleKeyDown
       )
 
       canvas.removeEventListener(
-        "touchstart",
+        'touchstart',
         handleTouch
       )
 
@@ -582,21 +821,22 @@ function FlappyBird({ selectedBird }) {
       clearTimeout(
         gameOverTimer
       )
+
     }
 
-  }, [])
+  }, [selectedBird])
 
   return (
-    <>
-      <canvas
-        className="gameCanvas"
-        width="400"
-        height="600"
-        ref={canvasRef}
-      >
-      </canvas>
-    </>
+
+    <canvas
+      className="gameCanvas"
+      width="400"
+      height="600"
+      ref={canvasRef}
+    />
+
   )
+
 }
 
 export default FlappyBird

@@ -9,7 +9,7 @@ import crow1 from '../assets/birds/crow/crow1.png'
 import crow2 from '../assets/birds/crow/crow2.png'
 
 import eagle0 from '../assets/birds/eagle/eagle0.png'
-import eagle1 from '../assets/birds/eagle/eagle1.png'
+import eagle1 from '../assets/birds/eagle/eagle2.png'
 import eagle2 from '../assets/birds/eagle/eagle2.png'
 
 import pipeB from '../assets/top.png'
@@ -22,56 +22,118 @@ import jumpSound from '../assets/jump.wav'
 
 import socket from '../services/socket'
 
-function MultiplayerFlappyBird({ selectedBird, onBack }) {
+function MultiplayerFlappyBird({
+  selectedBird,
+  remoteBird,
+  onBack
+}) {
 
-  const canvasRef = useRef(null)
+  const canvasRef =
+    useRef(null)
 
-  const localBirdY = useRef(250)
-  const remoteBirdY = useRef(250)
+  const localBirdY =
+    useRef(250)
 
-  const localVelocity = useRef(0)
-  const remoteVelocity = useRef(0)
+  const remoteBirdY =
+    useRef(250)
 
-  const pipeX = useRef(400)
+  const localVelocity =
+    useRef(0)
 
-  const score = useRef(0)
+  const remoteVelocity =
+    useRef(0)
+
+  const pipeX =
+    useRef(400)
+
+  const score =
+    useRef(0)
 
   const birdImages = {
-    normal: [bird0, bird1, bird2, bird1],
-    crow: [crow0, crow1, crow2, crow1],
-    eagle: [eagle0, eagle1, eagle2, eagle1],
+
+    normal: [
+      bird0,
+      bird1,
+      bird2,
+      bird1
+    ],
+
+    crow: [
+      crow0,
+      crow1,
+      crow2,
+      crow1
+    ],
+
+    eagle: [
+      eagle0,
+      eagle1,
+      eagle2,
+      eagle1
+    ]
+
+  }
+
+  function loadImage(src) {
+
+    return new Promise(
+      (resolve, reject) => {
+
+        const image =
+          new Image()
+
+        image.onload = () => {
+          resolve(image)
+        }
+
+        image.onerror = () => {
+          reject(
+            new Error(
+              `Failed to load image: ${src}`
+            )
+          )
+        }
+
+        image.src = src
+
+      }
+    )
+
   }
 
   useEffect(() => {
 
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
+    const canvas =
+      canvasRef.current
 
-    const jumpAudio = new Audio(jumpSound)
+    const ctx =
+      canvas.getContext('2d')
 
-    const birdFrames =
-      birdImages[selectedBird] || birdImages.normal
+    const jumpAudio =
+      new Audio(jumpSound)
 
-    const birdImage = new Image()
-    birdImage.src = birdFrames[0]
+    const localBirdFrames =
+      birdImages[selectedBird] ||
+      birdImages.normal
 
-    const remoteBirdImage = new Image()
-    remoteBirdImage.src = birdFrames[0]
+    const remoteBirdFrames =
+      birdImages[remoteBird] ||
+      birdImages.normal
 
-    const pipeBImage = new Image()
-    pipeBImage.src = pipeB
+    let localLoadedFrames = []
+    let remoteLoadedFrames = []
 
-    const pipePImage = new Image()
-    pipePImage.src = pipeP
+    let pipeBImage
+    let pipePImage
+    let backgroundImage
+    let groundImage
 
-    const backgroundImage = new Image()
-    backgroundImage.src = background
-
-    const groundImage = new Image()
-    groundImage.src = groundImag
+    let birdDeadImage = null
+    let remoteDeadImage = null
 
     let birdFrame = 0
     let remoteBirdFrame = 0
+
     let frameCount = 0
 
     let groundX = 0
@@ -102,10 +164,20 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
     let remoteBirdWidth = 40
     let remoteBirdHeight = 40
 
-    if (selectedBird === 'eagle') {
+    if (
+      selectedBird ===
+      'eagle'
+    ) {
 
       localBirdWidth = 50
       localBirdHeight = 50
+
+    }
+
+    if (
+      remoteBird ===
+      'eagle'
+    ) {
 
       remoteBirdWidth = 50
       remoteBirdHeight = 50
@@ -115,62 +187,89 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
     const localBirdX = 60
     const remoteBirdX = 160
 
-    /*
-      ارسال پیام مرگ
-    */
-
     function sendDeathMessage() {
 
-      if (deathMessageSent) {
+      if (
+        deathMessageSent
+      ) {
+
         return
+
       }
 
       deathMessageSent = true
 
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send('player_dead')
+      if (
+        socket.readyState ===
+        WebSocket.OPEN
+      ) {
+
+        socket.send(
+          'player_dead'
+        )
+
       }
 
     }
-
-    /*
-      Jump
-    */
 
     function localJump() {
 
-      if (!gameRunning || localDead) {
+      if (
+        !gameRunning ||
+        localDead
+      ) {
+
         return
+
       }
 
-      localVelocity.current = jumpPower
+      localVelocity.current =
+        jumpPower
 
       jumpAudio.currentTime = 0
-      jumpAudio.play().catch(() => {})
 
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send('jump')
+      jumpAudio
+        .play()
+        .catch(() => {})
+
+      if (
+        socket.readyState ===
+        WebSocket.OPEN
+      ) {
+
+        socket.send(
+          'jump'
+        )
+
       }
 
     }
 
-    /*
-      WebSocket
-    */
+    function handleSocketMessage(
+      event
+    ) {
 
-    function handleSocketMessage(event) {
+      if (
+        event.data ===
+        'player_jump'
+      ) {
 
-      if (event.data === 'player_jump') {
+        if (
+          !remoteDead &&
+          gameRunning
+        ) {
 
-        if (!remoteDead && gameRunning) {
-
-          remoteVelocity.current = jumpPower
+          remoteVelocity.current =
+            jumpPower
 
         }
 
       }
 
-      if (event.data === 'player_dead') {
+      if (
+        event.data ===
+        'player_dead'
+      ) {
 
         remoteDead = true
 
@@ -185,13 +284,14 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
       handleSocketMessage
     )
 
-    /*
-      Keyboard
-    */
+    function handleKeyDown(
+      event
+    ) {
 
-    function handleKeyDown(event) {
-
-      if (event.code === 'Space') {
+      if (
+        event.code ===
+        'Space'
+      ) {
 
         event.preventDefault()
 
@@ -206,11 +306,9 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
       handleKeyDown
     )
 
-    /*
-      Touch
-    */
-
-    function handleTouch(event) {
+    function handleTouch(
+      event
+    ) {
 
       event.preventDefault()
 
@@ -223,10 +321,6 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
       handleTouch
     )
 
-    /*
-      Collision
-    */
-
     function checkCollision(
       birdX,
       birdY,
@@ -235,12 +329,16 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
     ) {
 
       if (
-        birdX + birdWidth > pipeX.current &&
-        birdX < pipeX.current + pipeWidth
+        birdX + birdWidth >
+          pipeX.current &&
+        birdX <
+          pipeX.current +
+          pipeWidth
       ) {
 
         if (
-          birdY < pipeTopHeight
+          birdY <
+          pipeTopHeight
         ) {
 
           return true
@@ -248,8 +346,10 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
         }
 
         if (
-          birdY + birdHeight >
-          pipeTopHeight + pipeGap
+          birdY +
+            birdHeight >
+          pipeTopHeight +
+            pipeGap
         ) {
 
           return true
@@ -262,58 +362,121 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
 
     }
 
-    /*
-      Game Loop
-    */
+    async function startGame() {
+
+      try {
+
+        const allImages =
+          await Promise.all([
+
+            ...localBirdFrames.map(
+              loadImage
+            ),
+
+            ...remoteBirdFrames.map(
+              loadImage
+            ),
+
+            loadImage(pipeB),
+            loadImage(pipeP),
+            loadImage(background),
+            loadImage(groundImag)
+
+          ])
+
+        if (!gameRunning) {
+          return
+        }
+
+        let index = 0
+
+        localLoadedFrames =
+          allImages.slice(
+            index,
+            index +
+              localBirdFrames.length
+          )
+
+        index +=
+          localBirdFrames.length
+
+        remoteLoadedFrames =
+          allImages.slice(
+            index,
+            index +
+              remoteBirdFrames.length
+          )
+
+        index +=
+          remoteBirdFrames.length
+
+        pipeBImage =
+          allImages[index++]
+
+        pipePImage =
+          allImages[index++]
+
+        backgroundImage =
+          allImages[index++]
+
+        groundImage =
+          allImages[index++]
+
+        gameLoop()
+
+      } catch (error) {
+
+        console.error(
+          'Failed to load game images:',
+          error
+        )
+
+      }
+
+    }
 
     function gameLoop() {
 
-      if (!gameRunning) {
+      if (
+        !gameRunning
+      ) {
+
         return
+
       }
 
-      /*
-        اگر هر دو مرده باشند
-        بازی کاملاً متوقف می‌شود
-      */
-
-      if (localDead && remoteDead) {
+      if (
+        localDead &&
+        remoteDead
+      ) {
 
         gameRunning = false
 
       }
 
-      /*
-        Animation
-      */
-
       frameCount++
 
-      if (frameCount >= 8) {
+      if (
+        frameCount >= 8
+      ) {
 
         birdFrame++
 
-        if (birdFrame >= 4) {
+        if (
+          birdFrame >= 4
+        ) {
+
           birdFrame = 0
+
         }
 
         remoteBirdFrame++
 
-        if (remoteBirdFrame >= 4) {
+        if (
+          remoteBirdFrame >= 4
+        ) {
+
           remoteBirdFrame = 0
-        }
-
-        if (!localDead) {
-
-          birdImage.src =
-            birdFrames[birdFrame]
-
-        }
-
-        if (!remoteDead) {
-
-          remoteBirdImage.src =
-            birdFrames[remoteBirdFrame]
 
         }
 
@@ -321,56 +484,61 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
 
       }
 
-      /*
-        Local Physics
-      */
+      // LOCAL PHYSICS
 
-      if (!localDead) {
+      if (
+        !localDead
+      ) {
 
-        localVelocity.current += gravity
+        localVelocity.current +=
+          gravity
 
         localBirdY.current +=
           localVelocity.current
 
       }
 
-      /*
-        Remote Physics
-      */
+      // REMOTE PHYSICS
 
-      if (!remoteDead) {
+      if (
+        !remoteDead
+      ) {
 
-        remoteVelocity.current += gravity
+        remoteVelocity.current +=
+          gravity
 
         remoteBirdY.current +=
           remoteVelocity.current
 
       }
 
-      /*
-        Ceiling
-      */
+      // CEILING
 
-      if (localBirdY.current < 0) {
+      if (
+        localBirdY.current < 0
+      ) {
 
         localBirdY.current = 0
+
         localVelocity.current = 0
 
       }
 
-      if (remoteBirdY.current < 0) {
+      if (
+        remoteBirdY.current < 0
+      ) {
 
         remoteBirdY.current = 0
+
         remoteVelocity.current = 0
 
       }
 
-      /*
-        Ground
-      */
+      // GROUND
 
       if (
-        localBirdY.current > 540 &&
+        localBirdY.current >
+          540 &&
         !localDead
       ) {
 
@@ -383,19 +551,21 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
       }
 
       if (
-        remoteBirdY.current > 540
+        remoteBirdY.current >
+          540
       ) {
 
         remoteBirdY.current = 540
+
         remoteVelocity.current = 0
 
       }
 
-      /*
-        Local Collision
-      */
+      // LOCAL COLLISION
 
-      if (!localDead) {
+      if (
+        !localDead
+      ) {
 
         if (
           checkCollision(
@@ -416,11 +586,11 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
 
       }
 
-      /*
-        Remote Collision
-      */
+      // REMOTE COLLISION
 
-      if (!remoteDead) {
+      if (
+        !remoteDead
+      ) {
 
         if (
           checkCollision(
@@ -439,15 +609,12 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
 
       }
 
-      /*
-        Pipe
-      */
+      // PIPE
 
-      pipeX.current -= pipeSpeed
+      pipeX.current -=
+        pipeSpeed
 
-      /*
-        Score
-      */
+      // SCORE
 
       if (
         !lastScorePipe &&
@@ -460,11 +627,12 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
 
       }
 
-      /*
-        New Pipe
-      */
+      // NEW PIPE
 
-      if (pipeX.current < -pipeWidth) {
+      if (
+        pipeX.current <
+        -pipeWidth
+      ) {
 
         pipeX.current = 400
 
@@ -480,7 +648,9 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
         ]
 
         const index =
-          Math.floor(score.current) %
+          Math.floor(
+            score.current
+          ) %
           heights.length
 
         pipeTopHeight =
@@ -490,19 +660,19 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
 
       }
 
-      /*
-        Ground
-      */
+      // GROUND
 
       groundX -= 2.5
 
-      if (groundX <= -400) {
+      if (
+        groundX <= -400
+      ) {
+
         groundX = 0
+
       }
 
-      /*
-        Canvas
-      */
+      // CANVAS
 
       ctx.clearRect(
         0,
@@ -511,9 +681,7 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
         canvas.height
       )
 
-      /*
-        Background
-      */
+      // BACKGROUND
 
       ctx.drawImage(
         backgroundImage,
@@ -523,9 +691,7 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
         canvas.height
       )
 
-      /*
-        Pipe Top
-      */
+      // PIPE TOP
 
       ctx.drawImage(
         pipeBImage,
@@ -535,22 +701,22 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
         pipeTopHeight
       )
 
-      /*
-        Pipe Bottom
-      */
+      // PIPE BOTTOM
 
       ctx.drawImage(
         pipePImage,
         pipeX.current,
-        pipeTopHeight + pipeGap,
+        pipeTopHeight +
+          pipeGap,
         pipeWidth,
         canvas.height -
-        (pipeTopHeight + pipeGap)
+          (
+            pipeTopHeight +
+            pipeGap
+          )
       )
 
-      /*
-        Ground
-      */
+      // GROUND
 
       ctx.drawImage(
         groundImage,
@@ -568,45 +734,65 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
         50
       )
 
-      /*
-        Player 1
-        حتی بعد از مرگ هم نمایش داده می‌شود
-      */
+      // PLAYER 1
 
-      ctx.drawImage(
-        birdImage,
-        localBirdX,
-        localBirdY.current,
-        localBirdWidth,
-        localBirdHeight
-      )
+      if (
+        localLoadedFrames[
+          birdFrame
+        ]
+      ) {
 
-      /*
-        Player 2
-        حتی بعد از مرگ هم نمایش داده می‌شود
-      */
+        ctx.drawImage(
+          localLoadedFrames[
+            birdFrame
+          ],
+          localBirdX,
+          localBirdY.current,
+          localBirdWidth,
+          localBirdHeight
+        )
 
-      ctx.drawImage(
-        remoteBirdImage,
-        remoteBirdX,
-        remoteBirdY.current,
-        remoteBirdWidth,
-        remoteBirdHeight
-      )
+      }
 
-      /*
-        Labels
-      */
+      // PLAYER 2
 
-      ctx.font = '16px Arial'
-      ctx.textAlign = 'center'
-      ctx.fillStyle = 'white'
+      if (
+        remoteLoadedFrames[
+          remoteBirdFrame
+        ]
+      ) {
 
-      if (!localDead) {
+        ctx.drawImage(
+          remoteLoadedFrames[
+            remoteBirdFrame
+          ],
+          remoteBirdX,
+          remoteBirdY.current,
+          remoteBirdWidth,
+          remoteBirdHeight
+        )
+
+      }
+
+      // LABELS
+
+      ctx.font =
+        '16px Arial'
+
+      ctx.textAlign =
+        'center'
+
+      ctx.fillStyle =
+        'white'
+
+      if (
+        !localDead
+      ) {
 
         ctx.fillText(
           'YOU',
-          localBirdX + localBirdWidth / 2,
+          localBirdX +
+            localBirdWidth / 2,
           localBirdY.current - 8
         )
 
@@ -614,17 +800,21 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
 
         ctx.fillText(
           'DEAD',
-          localBirdX + localBirdWidth / 2,
+          localBirdX +
+            localBirdWidth / 2,
           localBirdY.current - 8
         )
 
       }
 
-      if (!remoteDead) {
+      if (
+        !remoteDead
+      ) {
 
         ctx.fillText(
           'P2',
-          remoteBirdX + remoteBirdWidth / 2,
+          remoteBirdX +
+            remoteBirdWidth / 2,
           remoteBirdY.current - 8
         )
 
@@ -632,18 +822,20 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
 
         ctx.fillText(
           'DEAD',
-          remoteBirdX + remoteBirdWidth / 2,
+          remoteBirdX +
+            remoteBirdWidth / 2,
           remoteBirdY.current - 8
         )
 
       }
 
-      /*
-        Score
-      */
+      // SCORE
 
-      ctx.font = '30px Arial'
-      ctx.fillStyle = 'white'
+      ctx.font =
+        '30px Arial'
+
+      ctx.fillStyle =
+        'white'
 
       ctx.fillText(
         score.current,
@@ -651,11 +843,11 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
         45
       )
 
-      /*
-        Death Overlay
-      */
+      // DEATH OVERLAY
 
-      if (localDead) {
+      if (
+        localDead
+      ) {
 
         ctx.fillStyle =
           'rgba(0, 0, 0, 0.45)'
@@ -667,8 +859,11 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
           canvas.height
         )
 
-        ctx.font = '38px Arial'
-        ctx.fillStyle = 'white'
+        ctx.font =
+          '38px Arial'
+
+        ctx.fillStyle =
+          'white'
 
         ctx.fillText(
           'YOU DIED',
@@ -678,12 +873,12 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
 
       }
 
-      /*
-        وقتی هر دو مردند،
-        یک پیام نهایی نمایش بده
-      */
+      // GAME OVER
 
-      if (localDead && remoteDead) {
+      if (
+        localDead &&
+        remoteDead
+      ) {
 
         ctx.fillStyle =
           'rgba(0, 0, 0, 0.65)'
@@ -695,8 +890,11 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
           canvas.height
         )
 
-        ctx.font = '38px Arial'
-        ctx.fillStyle = 'white'
+        ctx.font =
+          '38px Arial'
+
+        ctx.fillStyle =
+          'white'
 
         ctx.fillText(
           'GAME OVER',
@@ -704,7 +902,8 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
           260
         )
 
-        ctx.font = '22px Arial'
+        ctx.font =
+          '22px Arial'
 
         ctx.fillText(
           `Score: ${score.current}`,
@@ -717,19 +916,13 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
       }
 
       animationId =
-        requestAnimationFrame(gameLoop)
+        requestAnimationFrame(
+          gameLoop
+        )
 
     }
 
-    /*
-      شروع بازی
-    */
-
-    gameLoop()
-
-    /*
-      Cleanup
-    */
+    startGame()
 
     return () => {
 
@@ -756,7 +949,10 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
 
     }
 
-  }, [selectedBird])
+  }, [
+    selectedBird,
+    remoteBird
+  ])
 
   return (
 
@@ -779,6 +975,7 @@ function MultiplayerFlappyBird({ selectedBird, onBack }) {
     </div>
 
   )
+
 }
 
 export default MultiplayerFlappyBird

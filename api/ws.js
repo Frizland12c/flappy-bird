@@ -9,7 +9,6 @@ const redis = new Redis({
 })
 
 const app = express()
-
 const server = createServer(app)
 
 const wss = new WebSocketServer({
@@ -19,10 +18,12 @@ const wss = new WebSocketServer({
 const connections = new Map()
 
 function createRoomCode() {
+
   return Math.random()
     .toString(36)
     .substring(2, 7)
     .toUpperCase()
+
 }
 
 wss.on('connection', (socket) => {
@@ -36,49 +37,79 @@ wss.on('connection', (socket) => {
     console.log('Message:', data)
 
     // CREATE ROOM
-    if (data === 'create_room') {
+    // create_room:eagle
+    if (data.startsWith('create_room:')) {
 
-      const roomCode = createRoomCode()
+      const bird =
+        data.split(':')[1] || 'normal'
 
-      await redis.set(`room:${roomCode}`, {
-        player1: true,
-        player2: false
-      })
+      const roomCode =
+        createRoomCode()
+
+      await redis.set(
+        `room:${roomCode}`,
+        {
+          player1: true,
+          player2: false,
+          player1Bird: bird,
+          player2Bird: null
+        }
+      )
 
       socket.roomCode = roomCode
       socket.playerNumber = 1
 
-      connections.set(`${roomCode}:1`, socket)
+      connections.set(
+        `${roomCode}:1`,
+        socket
+      )
 
       socket.send(roomCode)
 
       return
+
     }
 
     // JOIN ROOM
+    // join_room:ABCDE:crow
     if (data.startsWith('join_room:')) {
 
+      const parts =
+        data.split(':')
+
       const roomCode =
-        data.split(':')[1]
+        parts[1]
+
+      const bird =
+        parts[2] || 'normal'
 
       const room =
-        await redis.get(`room:${roomCode}`)
+        await redis.get(
+          `room:${roomCode}`
+        )
 
       if (!room) {
 
-        socket.send('room_not_found')
+        socket.send(
+          'room_not_found'
+        )
 
         return
+
       }
 
       if (room.player2) {
 
-        socket.send('room_full')
+        socket.send(
+          'room_full'
+        )
 
         return
+
       }
 
       room.player2 = true
+      room.player2Bird = bird
 
       await redis.set(
         `room:${roomCode}`,
@@ -93,25 +124,51 @@ wss.on('connection', (socket) => {
         socket
       )
 
-      socket.send('joined_room')
+      socket.send(
+        'joined_room'
+      )
+
+      /*
+        نوع پرنده Player 1 را
+        برای Player 2 می‌فرستیم.
+      */
+
+      socket.send(
+        `remote_bird:${room.player1Bird || 'normal'}`
+      )
+
+      /*
+        نوع پرنده Player 2 را
+        برای Player 1 می‌فرستیم.
+      */
 
       const player1 =
-        connections.get(`${roomCode}:1`)
+        connections.get(
+          `${roomCode}:1`
+        )
 
       if (player1) {
 
+        player1.send(
+          `remote_bird:${bird}`
+        )
+
         /*
           هر دو بازیکن آماده‌اند.
-          Countdown را همزمان برای هر دو شروع می‌کنیم.
         */
 
-        player1.send('countdown_start')
+        player1.send(
+          'countdown_start'
+        )
 
-        socket.send('countdown_start')
+        socket.send(
+          'countdown_start'
+        )
 
       }
 
       return
+
     }
 
     // JUMP
@@ -125,14 +182,18 @@ wss.on('connection', (socket) => {
       }
 
       const room =
-        await redis.get(`room:${roomCode}`)
+        await redis.get(
+          `room:${roomCode}`
+        )
 
       if (!room) {
         return
       }
 
       const otherPlayerNumber =
-        socket.playerNumber === 1 ? 2 : 1
+        socket.playerNumber === 1
+          ? 2
+          : 1
 
       const otherPlayer =
         connections.get(
@@ -141,11 +202,14 @@ wss.on('connection', (socket) => {
 
       if (otherPlayer) {
 
-        otherPlayer.send('player_jump')
+        otherPlayer.send(
+          'player_jump'
+        )
 
       }
 
       return
+
     }
 
     // PLAYER DEAD
@@ -159,7 +223,9 @@ wss.on('connection', (socket) => {
       }
 
       const otherPlayerNumber =
-        socket.playerNumber === 1 ? 2 : 1
+        socket.playerNumber === 1
+          ? 2
+          : 1
 
       const otherPlayer =
         connections.get(
@@ -168,11 +234,63 @@ wss.on('connection', (socket) => {
 
       if (otherPlayer) {
 
-        otherPlayer.send('player_dead')
+        otherPlayer.send(
+          'player_dead'
+        )
 
       }
 
       return
+
+    }
+
+    // RESTART GAME
+    if (data === 'restart_game') {
+
+      const roomCode =
+        socket.roomCode
+
+      if (!roomCode) {
+        return
+      }
+
+      const room =
+        await redis.get(
+          `room:${roomCode}`
+        )
+
+      if (!room) {
+        return
+      }
+
+      const player1 =
+        connections.get(
+          `${roomCode}:1`
+        )
+
+      const player2 =
+        connections.get(
+          `${roomCode}:2`
+        )
+
+      if (player1) {
+
+        player1.send(
+          'restart_game'
+        )
+
+      }
+
+      if (player2) {
+
+        player2.send(
+          'restart_game'
+        )
+
+      }
+
+      return
+
     }
 
   })
@@ -185,8 +303,13 @@ wss.on('connection', (socket) => {
     const playerNumber =
       socket.playerNumber
 
-    if (!roomCode || !playerNumber) {
+    if (
+      !roomCode ||
+      !playerNumber
+    ) {
+
       return
+
     }
 
     connections.delete(
@@ -194,20 +317,27 @@ wss.on('connection', (socket) => {
     )
 
     const room =
-      await redis.get(`room:${roomCode}`)
+      await redis.get(
+        `room:${roomCode}`
+      )
 
     if (!room) {
       return
     }
 
+    // PLAYER 1 LEFT
     if (playerNumber === 1) {
 
       const player2 =
-        connections.get(`${roomCode}:2`)
+        connections.get(
+          `${roomCode}:2`
+        )
 
       if (player2) {
 
-        player2.send('player_left')
+        player2.send(
+          'player_left'
+        )
 
       }
 
@@ -220,11 +350,14 @@ wss.on('connection', (socket) => {
       )
 
       return
+
     }
 
+    // PLAYER 2 LEFT
     if (playerNumber === 2) {
 
       room.player2 = false
+      room.player2Bird = null
 
       await redis.set(
         `room:${roomCode}`,
@@ -232,11 +365,15 @@ wss.on('connection', (socket) => {
       )
 
       const player1 =
-        connections.get(`${roomCode}:1`)
+        connections.get(
+          `${roomCode}:1`
+        )
 
       if (player1) {
 
-        player1.send('player_left')
+        player1.send(
+          'player_left'
+        )
 
       }
 

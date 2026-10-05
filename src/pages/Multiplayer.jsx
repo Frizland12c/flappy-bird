@@ -2,13 +2,28 @@ import { useState, useEffect } from 'react'
 import socket from '../services/socket'
 import MultiplayerFlappyBird from '../game/MultiplayerFlappyBird'
 
-function Multiplayer({ onBack, selectedBird }) {
+function Multiplayer({
+  onBack,
+  selectedBird
+}) {
 
-  const [roomCode, setRoomCode] = useState('')
-  const [joinCode, setJoinCode] = useState('')
-  const [message, setMessage] = useState('')
-  const [gameReady, setGameReady] = useState(false)
-  const [countdown, setCountdown] = useState(null)
+  const [roomCode, setRoomCode] =
+    useState('')
+
+  const [joinCode, setJoinCode] =
+    useState('')
+
+  const [message, setMessage] =
+    useState('')
+
+  const [gameReady, setGameReady] =
+    useState(false)
+
+  const [countdown, setCountdown] =
+    useState(null)
+
+  const [remoteBird, setRemoteBird] =
+    useState('normal')
 
   useEffect(() => {
 
@@ -16,57 +31,142 @@ function Multiplayer({ onBack, selectedBird }) {
 
     function handleMessage(event) {
 
-      if (event.data === 'joined_room') {
+      if (
+        event.data ===
+        'joined_room'
+      ) {
 
-        setMessage('Joined successfully!')
+        setMessage(
+          'Joined successfully!'
+        )
 
       }
 
-      else if (event.data === 'countdown_start') {
+      else if (
+        event.data.startsWith(
+          'remote_bird:'
+        )
+      ) {
 
-        setMessage('Get ready!')
+        const bird =
+          event.data.split(':')[1]
+
+        if (
+          bird === 'normal' ||
+          bird === 'crow' ||
+          bird === 'eagle'
+        ) {
+
+          setRemoteBird(bird)
+
+        }
+
+      }
+
+      else if (
+        event.data ===
+        'countdown_start'
+      ) {
+
+        setMessage(
+          'Get ready!'
+        )
 
         setCountdown(5)
 
         let number = 5
 
-        countdownTimer = setInterval(() => {
+        clearInterval(
+          countdownTimer
+        )
 
-          number--
+        countdownTimer =
+          setInterval(() => {
 
-          if (number > 0) {
+            number--
 
-            setCountdown(number)
+            if (number > 0) {
 
-          } else {
+              setCountdown(
+                number
+              )
 
-            clearInterval(countdownTimer)
+            } else {
 
-            setCountdown(null)
+              clearInterval(
+                countdownTimer
+              )
 
-            setGameReady(true)
+              setCountdown(
+                null
+              )
 
-          }
+              setGameReady(
+                true
+              )
 
-        }, 1000)
+            }
+
+          }, 1000)
 
       }
 
-      else if (event.data === 'player_left') {
+      else if (
+        event.data ===
+        'player_left'
+      ) {
 
-        clearInterval(countdownTimer)
+        clearInterval(
+          countdownTimer
+        )
 
-        setCountdown(null)
+        setCountdown(
+          null
+        )
 
-        setGameReady(false)
+        setGameReady(
+          false
+        )
 
-        setMessage('Player left the game')
+        setRemoteBird(
+          'normal'
+        )
+
+        setMessage(
+          'Player left the game'
+        )
 
       }
 
-      else if (event.data.length === 5) {
+      else if (
+        event.data ===
+        'room_not_found'
+      ) {
 
-        setRoomCode(event.data)
+        setMessage(
+          'Room not found'
+        )
+
+      }
+
+      else if (
+        event.data ===
+        'room_full'
+      ) {
+
+        setMessage(
+          'Room is full'
+        )
+
+      }
+
+      else if (
+        event.data.length === 5
+      ) {
+
+        setRoomCode(
+          event.data
+        )
 
       }
 
@@ -79,7 +179,9 @@ function Multiplayer({ onBack, selectedBird }) {
 
     return () => {
 
-      clearInterval(countdownTimer)
+      clearInterval(
+        countdownTimer
+      )
 
       socket.removeEventListener(
         'message',
@@ -102,9 +204,16 @@ function Multiplayer({ onBack, selectedBird }) {
       )
 
       return
+
     }
 
-    socket.send('create_room')
+    setRemoteBird(
+      'normal'
+    )
+
+    socket.send(
+      `create_room:${selectedBird}`
+    )
 
     setMessage(
       'Waiting for Player 2...'
@@ -121,6 +230,7 @@ function Multiplayer({ onBack, selectedBird }) {
       )
 
       return
+
     }
 
     if (
@@ -133,10 +243,11 @@ function Multiplayer({ onBack, selectedBird }) {
       )
 
       return
+
     }
 
     socket.send(
-      `join_room:${joinCode.toUpperCase()}`
+      `join_room:${joinCode.toUpperCase()}:${selectedBird}`
     )
 
     setMessage(
@@ -150,6 +261,7 @@ function Multiplayer({ onBack, selectedBird }) {
     return (
       <MultiplayerFlappyBird
         selectedBird={selectedBird}
+        remoteBird={remoteBird}
         onBack={onBack}
       />
     )
@@ -160,7 +272,9 @@ function Multiplayer({ onBack, selectedBird }) {
 
     <div className="multiplayerPage">
 
-      <h1>MULTIPLAYER</h1>
+      <h1>
+        MULTIPLAYER
+      </h1>
 
       {countdown !== null ? (
 
@@ -254,6 +368,7 @@ function Multiplayer({ onBack, selectedBird }) {
     </div>
 
   )
+
 }
 
 export default Multiplayer
