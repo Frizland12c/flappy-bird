@@ -1,36 +1,27 @@
-import http from 'http'
+import express from 'express'
+import { createServer } from 'http'
 import { WebSocketServer } from 'ws'
 
-const port = process.env.PORT || 8080
+const app = express()
 
-const server = http.createServer((req, res) => {
+const server = createServer(app)
 
-    if (req.url === '/') {
-
-        res.writeHead(200, {
-            'Content-Type': 'text/plain'
-        })
-
-        res.end('Flappy Bird WebSocket Server is running')
-
-        return
-    }
-
-    res.writeHead(404)
-    res.end()
-
-})
+const port = process.env.PORT || 10000
 
 const wss = new WebSocketServer({
-    server: server,
+    server,
     path: '/ws'
 })
 
-console.log(
-    `Starting server on port ${port}`
-)
-
 const rooms = {}
+
+app.get('/', (req, res) => {
+
+    res.send(
+        'Flappy Bird WebSocket Server is running'
+    )
+
+})
 
 function createRoomCode() {
 
@@ -43,7 +34,7 @@ function createRoomCode() {
 
 wss.on('connection', (socket) => {
 
-    console.log('Client connected')
+    console.log('WebSocket client connected')
 
     socket.on('message', (message) => {
 
@@ -84,7 +75,7 @@ wss.on('connection', (socket) => {
                 data.split(':')[1]
 
             console.log(
-                'Join request for room:',
+                'Join request:',
                 roomCode
             )
 
@@ -94,9 +85,10 @@ wss.on('connection', (socket) => {
                     'room_not_found'
                 )
 
+                return
             }
 
-            else if (
+            if (
                 rooms[roomCode].player2
             ) {
 
@@ -104,36 +96,33 @@ wss.on('connection', (socket) => {
                     'room_full'
                 )
 
+                return
             }
 
-            else {
+            rooms[roomCode].player2 =
+                socket
 
-                rooms[roomCode].player2 =
-                    socket
+            socket.roomCode =
+                roomCode
 
-                socket.roomCode =
-                    roomCode
+            socket.playerNumber = 2
 
-                socket.playerNumber = 2
+            console.log(
+                'Player 2 joined:',
+                roomCode
+            )
 
-                console.log(
-                    'Player 2 joined:',
-                    roomCode
-                )
+            socket.send(
+                'joined_room'
+            )
 
-                socket.send(
-                    'joined_room'
-                )
+            rooms[roomCode]
+                .player1
+                .send('game_ready')
 
-                rooms[roomCode]
-                    .player1
-                    .send('game_ready')
-
-                rooms[roomCode]
-                    .player2
-                    .send('game_ready')
-
-            }
+            rooms[roomCode]
+                .player2
+                .send('game_ready')
 
         }
 
@@ -188,7 +177,7 @@ wss.on('connection', (socket) => {
     socket.on('close', () => {
 
         console.log(
-            'Client disconnected'
+            'WebSocket client disconnected'
         )
 
         const roomCode =
