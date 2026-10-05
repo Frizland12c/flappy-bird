@@ -1,21 +1,113 @@
-const socket = new WebSocket(
-  'wss://flappy-bird-y45l.onrender.com/ws'
-)
+let socket = null
 
-socket.onopen = () => {
-  console.log('WebSocket connected')
+let reconnectAttempts = 0
+
+const maxReconnectDelay = 10000
+
+function connect() {
+
+  socket = new WebSocket(
+    'wss://flappy-bird-y45l.onrender.com/ws'
+  )
+
+  socket.onopen = () => {
+
+    console.log('WebSocket connected')
+
+    reconnectAttempts = 0
+
+  }
+
+  socket.onmessage = (event) => {
+
+    console.log(
+      'Message from server:',
+      event.data
+    )
+
+  }
+
+  socket.onclose = () => {
+
+    console.log(
+      'WebSocket disconnected'
+    )
+
+    reconnect()
+
+  }
+
+  socket.onerror = (error) => {
+
+    console.log(
+      'WebSocket error',
+      error
+    )
+
+  }
+
 }
 
-socket.onmessage = (event) => {
-  console.log('Message from server:', event.data)
+function reconnect() {
+
+  reconnectAttempts++
+
+  const delay = Math.min(
+    1000 * 2 ** (reconnectAttempts - 1),
+    maxReconnectDelay
+  )
+
+  console.log(
+    `Reconnecting in ${delay}ms...`
+  )
+
+  setTimeout(() => {
+
+    connect()
+
+  }, delay)
+
 }
 
-socket.onclose = () => {
-  console.log('WebSocket disconnected')
-}
+connect()
 
-socket.onerror = (error) => {
-  console.log('WebSocket error', error)
-}
+export default {
 
-export default socket
+  get readyState() {
+
+    return socket?.readyState
+
+  },
+
+  send(message) {
+
+    if (
+      socket &&
+      socket.readyState === WebSocket.OPEN
+    ) {
+
+      socket.send(message)
+
+    }
+
+  },
+
+  addEventListener(type, handler) {
+
+    socket?.addEventListener(
+      type,
+      handler
+    )
+
+  },
+
+  removeEventListener(type, handler) {
+
+    socket?.removeEventListener(
+      type,
+      handler
+    )
+
+  }
+
+}
