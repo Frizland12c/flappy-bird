@@ -1,6 +1,12 @@
+import { Redis } from '@upstash/redis'
 import express from 'express'
 import { createServer } from 'http'
 import { WebSocketServer } from 'ws'
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN
+})
 
 const app = express()
 
@@ -9,8 +15,6 @@ const server = createServer(app)
 const wss = new WebSocketServer({
   server
 })
-
-const rooms = {}
 
 function createRoomCode() {
   return Math.random()
@@ -23,20 +27,21 @@ wss.on('connection', (socket) => {
 
   console.log('Vercel WebSocket connected')
 
-  socket.on('message', (message) => {
+  socket.on('message', async (message) => {
 
     const data = message.toString()
 
     console.log('Message:', data)
 
+    // CREATE ROOM
     if (data === 'create_room') {
 
       const roomCode = createRoomCode()
 
-      rooms[roomCode] = {
-        player1: socket,
-        player2: null
-      }
+      await redis.set(`room:${roomCode}`, {
+        player1: true,
+        player2: false
+      })
 
       socket.roomCode = roomCode
       socket.playerNumber = 1
@@ -46,87 +51,93 @@ wss.on('connection', (socket) => {
       return
     }
 
+    // JOIN ROOM
     if (data.startsWith('join_room:')) {
 
       const roomCode = data.split(':')[1]
 
-      if (!rooms[roomCode]) {
+      const room = await redis.get(`room:${roomCode}`)
+
+      if (!room) {
         socket.send('room_not_found')
         return
       }
 
-      if (rooms[roomCode].player2) {
+      if (room.player2) {
         socket.send('room_full')
         return
       }
 
-      rooms[roomCode].player2 = socket
+      room.player2 = true
+
+      await redis.set(`room:${roomCode}`, room)
 
       socket.roomCode = roomCode
       socket.playerNumber = 2
 
       socket.send('joined_room')
 
-      rooms[roomCode].player1.send('game_ready')
-      rooms[roomCode].player2.send('game_ready')
-
       return
     }
 
+    // JUMP
     if (data === 'jump') {
 
       const roomCode = socket.roomCode
 
-      if (!roomCode) return
-
-      const room = rooms[roomCode]
-
-      if (!room) return
-
-      if (
-        socket.playerNumber === 1 &&
-        room.player2
-      ) {
-        room.player2.send('player_jump')
+      if (!roomCode) {
+        return
       }
 
-      if (
-        socket.playerNumber === 2 &&
-        room.player1
-      ) {
-        room.player1.send('player_jump')
+      const room = await redis.get(`room:${roomCode}`)
+
+      if (!room) {
+        return
       }
+
+      console.log(
+        `Player ${socket.playerNumber} jumped in room ${roomCode}`
+      )
 
       return
     }
 
   })
 
-  socket.on('close', () => {
+  socket.on('close', async () => {
 
     const roomCode = socket.roomCode
 
-    if (!roomCode) return
+    if (!roomCode) {
+      return
+    }
 
-    const room = rooms[roomCode]
+    const room = await redis.get(`room:${roomCode}`)
 
-    if (!room) return
+    if (!room) {
+      return
+    }
 
-    if (room.player1 === socket) {
+    if (socket.playerNumber === 1) {
 
-      if (room.player2) {
-        room.player2.send('player_left')
-      }
+      await redis.del(`room:${roomCode}`)
 
-      delete rooms[roomCode]
+      console.log(
+        `Room ${roomCode} deleted`
+      )
 
-    } else if (room.player2 === socket) {
+      return
+    }
 
-      room.player2 = null
+    if (socket.playerNumber === 2) {
 
-      if (room.player1) {
-        room.player1.send('player_left')
-      }
+      room.player2 = false
+
+      await redis.set(`room:${roomCode}`, room)
+
+      console.log(
+        `Player 2 left room ${roomCode}`
+      )
 
     }
 
