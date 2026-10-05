@@ -1,10 +1,12 @@
 import { WebSocketServer } from 'ws'
 
+const port = process.env.PORT || 8080
+
 const wss = new WebSocketServer({
-    port: 8080
+    port: port
 })
 
-console.log('WebSocket server running on port 8080')
+console.log(`WebSocket server running on port ${port}`)
 
 const rooms = {}
 
