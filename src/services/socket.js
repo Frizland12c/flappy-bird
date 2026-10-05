@@ -1,13 +1,15 @@
-const socket = new WebSocket('ws://localhost:8080')
+const socket = new WebSocket(
+  'wss://flappy-bird-y45l.onrender.com'
+)
 
 socket.onopen = () => {
   console.log('WebSocket connected')
- 
 }
 
 socket.onmessage = (event) => {
   console.log('Message from server:', event.data)
 }
+
 socket.onclose = () => {
   console.log('WebSocket disconnected')
 }
