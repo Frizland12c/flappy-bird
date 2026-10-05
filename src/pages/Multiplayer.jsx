@@ -8,8 +8,11 @@ function Multiplayer({ onBack, selectedBird }) {
   const [joinCode, setJoinCode] = useState('')
   const [message, setMessage] = useState('')
   const [gameReady, setGameReady] = useState(false)
+  const [countdown, setCountdown] = useState(null)
 
   useEffect(() => {
+
+    let countdownTimer
 
     function handleMessage(event) {
 
@@ -17,16 +20,51 @@ function Multiplayer({ onBack, selectedBird }) {
 
         setMessage('Joined successfully!')
 
-      } else if (event.data === 'game_ready') {
+      }
 
-        setMessage('Game is ready!')
-        setGameReady(true)
+      else if (event.data === 'countdown_start') {
 
-      } else if (event.data === 'player_left') {
+        setMessage('Get ready!')
+
+        setCountdown(5)
+
+        let number = 5
+
+        countdownTimer = setInterval(() => {
+
+          number--
+
+          if (number > 0) {
+
+            setCountdown(number)
+
+          } else {
+
+            clearInterval(countdownTimer)
+
+            setCountdown(null)
+
+            setGameReady(true)
+
+          }
+
+        }, 1000)
+
+      }
+
+      else if (event.data === 'player_left') {
+
+        clearInterval(countdownTimer)
+
+        setCountdown(null)
+
+        setGameReady(false)
 
         setMessage('Player left the game')
 
-      } else if (event.data.length === 5) {
+      }
+
+      else if (event.data.length === 5) {
 
         setRoomCode(event.data)
 
@@ -34,35 +72,66 @@ function Multiplayer({ onBack, selectedBird }) {
 
     }
 
-    socket.addEventListener('message', handleMessage)
+    socket.addEventListener(
+      'message',
+      handleMessage
+    )
 
     return () => {
-      socket.removeEventListener('message', handleMessage)
+
+      clearInterval(countdownTimer)
+
+      socket.removeEventListener(
+        'message',
+        handleMessage
+      )
+
     }
 
   }, [])
 
   function createRoom() {
 
-    if (socket.readyState !== WebSocket.OPEN) {
-      setMessage('WebSocket is not connected')
+    if (
+      socket.readyState !==
+      WebSocket.OPEN
+    ) {
+
+      setMessage(
+        'WebSocket is not connected'
+      )
+
       return
     }
 
     socket.send('create_room')
-    setMessage('Creating room...')
+
+    setMessage(
+      'Waiting for Player 2...'
+    )
 
   }
 
   function joinRoom() {
 
     if (!joinCode) {
-      setMessage('Enter room code')
+
+      setMessage(
+        'Enter room code'
+      )
+
       return
     }
 
-    if (socket.readyState !== WebSocket.OPEN) {
-      setMessage('WebSocket is not connected')
+    if (
+      socket.readyState !==
+      WebSocket.OPEN
+    ) {
+
+      setMessage(
+        'WebSocket is not connected'
+      )
+
       return
     }
 
@@ -70,7 +139,9 @@ function Multiplayer({ onBack, selectedBird }) {
       `join_room:${joinCode.toUpperCase()}`
     )
 
-    setMessage('Joining room...')
+    setMessage(
+      'Joining room...'
+    )
 
   }
 
@@ -86,54 +157,102 @@ function Multiplayer({ onBack, selectedBird }) {
   }
 
   return (
+
     <div className="multiplayerPage">
 
       <h1>MULTIPLAYER</h1>
 
-      <button
-        className="multiplayerOption"
-        onClick={createRoom}
-      >
-        🎮 Create Room
-      </button>
+      {countdown !== null ? (
 
-      {roomCode && (
-        <p>
-          Room Code: {roomCode}
-        </p>
+        <div className="countdownBox">
+
+          <p className="countdownText">
+            GET READY
+          </p>
+
+          <div className="countdownNumber">
+            {countdown}
+          </div>
+
+        </div>
+
+      ) : (
+
+        <>
+
+          <button
+            className="multiplayerOption"
+            onClick={createRoom}
+          >
+            🎮 Create Room
+          </button>
+
+          {roomCode && (
+
+            <div className="roomCodeBox">
+
+              <p>
+                ROOM CODE
+              </p>
+
+              <strong>
+                {roomCode}
+              </strong>
+
+              <span>
+                Waiting for Player 2...
+              </span>
+
+            </div>
+
+          )}
+
+          <div className="joinBox">
+
+            <input
+              type="text"
+              placeholder="ENTER ROOM CODE"
+              value={joinCode}
+              onChange={(e) => {
+
+                setJoinCode(
+                  e.target.value.toUpperCase()
+                )
+
+              }}
+              maxLength={5}
+            />
+
+            <button
+              className="multiplayerOption"
+              onClick={joinRoom}
+            >
+              🔑 Join Room
+            </button>
+
+          </div>
+
+          {message && (
+
+            <p className="multiplayerMessage">
+              {message}
+            </p>
+
+          )}
+
+          <button
+            className="backButton"
+            onClick={onBack}
+          >
+            ← Back
+          </button>
+
+        </>
+
       )}
-
-      <input
-        type="text"
-        placeholder="Enter room code"
-        value={joinCode}
-        onChange={(e) => {
-          setJoinCode(e.target.value.toUpperCase())
-        }}
-        maxLength={5}
-      />
-
-      <button
-        className="multiplayerOption"
-        onClick={joinRoom}
-      >
-        🔑 Join Room
-      </button>
-
-      {message && (
-        <p>
-          {message}
-        </p>
-      )}
-
-      <button
-        className="backButton"
-        onClick={onBack}
-      >
-        ← Back
-      </button>
 
     </div>
+
   )
 }
 
