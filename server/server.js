@@ -22,7 +22,8 @@ const server = http.createServer((req, res) => {
 })
 
 const wss = new WebSocketServer({
-    server: server
+    server: server,
+    path: '/ws'
 })
 
 console.log(

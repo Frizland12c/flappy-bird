@@ -1,5 +1,5 @@
 const socket = new WebSocket(
-  'wss://flappy-bird-y45l.onrender.com'
+  'wss://flappy-bird-y45l.onrender.com/ws'
 )
 
 socket.onopen = () => {
