@@ -31,10 +31,26 @@ function createRoomCode() {
         .toUpperCase()
 
 }
+server.on('upgrade', (request) => {
+
+    console.log(
+        'UPGRADE REQUEST:',
+        request.url
+    )
+
+})
 
 wss.on('connection', (socket) => {
 
     console.log('WebSocket client connected')
+    socket.on('error', (error) => {
+
+        console.log(
+            'WebSocket socket error:',
+            error
+        )
+
+    })
 
     socket.on('message', (message) => {
 
@@ -174,11 +190,16 @@ wss.on('connection', (socket) => {
 
     })
 
-    socket.on('close', () => {
+    socket.on('close', (code, reason) => {
 
         console.log(
-            'WebSocket client disconnected'
+            'WebSocket client disconnected',
+            'code:',
+            code,
+            'reason:',
+            reason.toString()
         )
+
 
         const roomCode =
             socket.roomCode
