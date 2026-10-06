@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 
 import bird0 from '../assets/bird0.png'
 import bird1 from '../assets/bird1.png'
@@ -48,6 +48,12 @@ function MultiplayerFlappyBird({
 
   const score =
     useRef(0)
+
+  const [gameOver, setGameOver] =
+    useState(false)
+
+  const [restartCountdown, setRestartCountdown] =
+    useState(null)
 
   const birdImages = {
 
@@ -128,9 +134,6 @@ function MultiplayerFlappyBird({
     let backgroundImage
     let groundImage
 
-    let birdDeadImage = null
-    let remoteDeadImage = null
-
     let birdFrame = 0
     let remoteBirdFrame = 0
 
@@ -140,7 +143,9 @@ function MultiplayerFlappyBird({
 
     let gameRunning = true
 
-    let animationId
+    let animationId = null
+
+    let restartTimer = null
 
     const gravity = 0.2
     const jumpPower = -5
@@ -245,6 +250,96 @@ function MultiplayerFlappyBird({
 
     }
 
+    function resetGame() {
+
+      if (restartTimer) {
+
+        clearInterval(
+          restartTimer
+        )
+
+        restartTimer = null
+
+      }
+
+      if (animationId) {
+
+        cancelAnimationFrame(
+          animationId
+        )
+
+        animationId = null
+
+      }
+
+      localBirdY.current = 250
+      remoteBirdY.current = 250
+
+      localVelocity.current = 0
+      remoteVelocity.current = 0
+
+      pipeX.current = 400
+
+      score.current = 0
+
+      birdFrame = 0
+      remoteBirdFrame = 0
+
+      frameCount = 0
+
+      groundX = 0
+
+      pipeTopHeight = 180
+
+      localDead = false
+      remoteDead = false
+
+      deathMessageSent = false
+      lastScorePipe = false
+
+      gameRunning = false
+
+      setGameOver(false)
+
+      setRestartCountdown(5)
+
+      let number = 5
+
+      restartTimer =
+        setInterval(() => {
+
+          number--
+
+          if (
+            number > 0
+          ) {
+
+            setRestartCountdown(
+              number
+            )
+
+          } else {
+
+            clearInterval(
+              restartTimer
+            )
+
+            restartTimer = null
+
+            setRestartCountdown(
+              null
+            )
+
+            gameRunning = true
+
+            gameLoop()
+
+          }
+
+        }, 1000)
+
+    }
+
     function handleSocketMessage(
       event
     ) {
@@ -266,7 +361,7 @@ function MultiplayerFlappyBird({
 
       }
 
-      if (
+      else if (
         event.data ===
         'player_dead'
       ) {
@@ -274,6 +369,15 @@ function MultiplayerFlappyBird({
         remoteDead = true
 
         remoteVelocity.current = 0
+
+      }
+
+      else if (
+        event.data ===
+        'restart_game'
+      ) {
+
+        resetGame()
 
       }
 
@@ -445,12 +549,22 @@ function MultiplayerFlappyBird({
 
       }
 
+      /*
+        وقتی هر دو بازیکن مرده‌اند،
+        بازی متوقف می‌شود و دکمه Restart
+        توسط React نمایش داده می‌شود.
+      */
+
       if (
         localDead &&
         remoteDead
       ) {
 
         gameRunning = false
+
+        setGameOver(true)
+
+        return
 
       }
 
@@ -899,7 +1013,7 @@ function MultiplayerFlappyBird({
         ctx.fillText(
           'GAME OVER',
           200,
-          260
+          250
         )
 
         ctx.font =
@@ -908,7 +1022,7 @@ function MultiplayerFlappyBird({
         ctx.fillText(
           `Score: ${score.current}`,
           200,
-          300
+          290
         )
 
         return
@@ -928,9 +1042,21 @@ function MultiplayerFlappyBird({
 
       gameRunning = false
 
-      cancelAnimationFrame(
-        animationId
-      )
+      if (animationId) {
+
+        cancelAnimationFrame(
+          animationId
+        )
+
+      }
+
+      if (restartTimer) {
+
+        clearInterval(
+          restartTimer
+        )
+
+      }
 
       window.removeEventListener(
         'keydown',
@@ -954,6 +1080,21 @@ function MultiplayerFlappyBird({
     remoteBird
   ])
 
+  function restartGame() {
+
+    if (
+      socket.readyState ===
+      WebSocket.OPEN
+    ) {
+
+      socket.send(
+        'restart_game'
+      )
+
+    }
+
+  }
+
   return (
 
     <div className="multiplayerGamePage">
@@ -964,6 +1105,31 @@ function MultiplayerFlappyBird({
         height="600"
         ref={canvasRef}
       />
+
+      {restartCountdown !== null && (
+
+        <div className="restartOverlay">
+
+          <p>
+            GET READY
+          </p>
+
+          <strong>
+            {restartCountdown}
+          </strong>
+
+        </div>
+
+      )}
+
+      {gameOver && (
+        <button
+          className="multiplayerRestartButton"
+          onClick={restartGame}
+        >
+          🔄 RESTART
+        </button>
+      )}
 
       <button
         className="backButton"
