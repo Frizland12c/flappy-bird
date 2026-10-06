@@ -93,11 +93,13 @@ function MultiplayerFlappyBird({
         }
 
         image.onerror = () => {
+
           reject(
             new Error(
               `Failed to load image: ${src}`
             )
           )
+
         }
 
         image.src = src
@@ -158,6 +160,9 @@ function MultiplayerFlappyBird({
 
     let localDead = false
     let remoteDead = false
+
+    let localDeathTime = null
+    let remoteDeathTime = null
 
     let deathMessageSent = false
 
@@ -294,6 +299,9 @@ function MultiplayerFlappyBird({
       localDead = false
       remoteDead = false
 
+      localDeathTime = null
+      remoteDeathTime = null
+
       deathMessageSent = false
       lastScorePipe = false
 
@@ -366,9 +374,24 @@ function MultiplayerFlappyBird({
         'player_dead'
       ) {
 
-        remoteDead = true
+        if (
+          !remoteDead
+        ) {
 
-        remoteVelocity.current = 0
+          remoteDead = true
+
+          remoteDeathTime =
+            Date.now()
+
+          remoteVelocity.current = 0
+
+        }
+
+        /*
+          اگر بازیکن خودمان قبلاً مرده باشد،
+          gameLoop همچنان یک ثانیه ادامه پیدا
+          می‌کند تا جسد هر دو بازیکن دیده شود.
+        */
 
       }
 
@@ -550,9 +573,11 @@ function MultiplayerFlappyBird({
       }
 
       /*
-        وقتی هر دو بازیکن مرده‌اند،
-        بازی متوقف می‌شود و دکمه Restart
-        توسط React نمایش داده می‌شود.
+        اگر هر دو بازیکن مرده‌اند،
+        بازی بلافاصله متوقف نمی‌شود.
+
+        یک ثانیه اجازه می‌دهیم جسد هر دو
+        روی صفحه دیده شود.
       */
 
       if (
@@ -560,11 +585,28 @@ function MultiplayerFlappyBird({
         remoteDead
       ) {
 
-        gameRunning = false
+        const now =
+          Date.now()
 
-        setGameOver(true)
+        const latestDeathTime =
+          Math.max(
+            localDeathTime || now,
+            remoteDeathTime || now
+          )
 
-        return
+        if (
+          now -
+            latestDeathTime >=
+          1000
+        ) {
+
+          gameRunning = false
+
+          setGameOver(true)
+
+          return
+
+        }
 
       }
 
@@ -574,23 +616,41 @@ function MultiplayerFlappyBird({
         frameCount >= 8
       ) {
 
-        birdFrame++
+        /*
+          پرنده زنده فریم عوض می‌کند.
+          پرنده مرده همان فریمی که در آن
+          مرده باقی می‌ماند.
+        */
 
         if (
-          birdFrame >= 4
+          !localDead
         ) {
 
-          birdFrame = 0
+          birdFrame++
+
+          if (
+            birdFrame >= 4
+          ) {
+
+            birdFrame = 0
+
+          }
 
         }
 
-        remoteBirdFrame++
-
         if (
-          remoteBirdFrame >= 4
+          !remoteDead
         ) {
 
-          remoteBirdFrame = 0
+          remoteBirdFrame++
+
+          if (
+            remoteBirdFrame >= 4
+          ) {
+
+            remoteBirdFrame = 0
+
+          }
 
         }
 
@@ -648,7 +708,7 @@ function MultiplayerFlappyBird({
 
       }
 
-      // GROUND
+      // LOCAL GROUND DEATH
 
       if (
         localBirdY.current >
@@ -660,9 +720,16 @@ function MultiplayerFlappyBird({
 
         localDead = true
 
+        localVelocity.current = 0
+
+        localDeathTime =
+          Date.now()
+
         sendDeathMessage()
 
       }
+
+      // REMOTE GROUND
 
       if (
         remoteBirdY.current >
@@ -694,6 +761,9 @@ function MultiplayerFlappyBird({
 
           localVelocity.current = 0
 
+          localDeathTime =
+            Date.now()
+
           sendDeathMessage()
 
         }
@@ -718,6 +788,9 @@ function MultiplayerFlappyBird({
           remoteDead = true
 
           remoteVelocity.current = 0
+
+          remoteDeathTime =
+            Date.now()
 
         }
 
@@ -848,43 +921,81 @@ function MultiplayerFlappyBird({
         50
       )
 
-      // PLAYER 1
+      /*
+        PLAYER 1
+
+        پرنده مرده تا یک ثانیه بعد از مرگ
+        روی همان نقطه می‌ماند.
+      */
+
+      const showLocalCorpse =
+        localDead &&
+        localDeathTime !== null &&
+        Date.now() -
+          localDeathTime <
+          1000
 
       if (
-        localLoadedFrames[
-          birdFrame
-        ]
+        !localDead ||
+        showLocalCorpse
       ) {
 
-        ctx.drawImage(
+        if (
           localLoadedFrames[
             birdFrame
-          ],
-          localBirdX,
-          localBirdY.current,
-          localBirdWidth,
-          localBirdHeight
-        )
+          ]
+        ) {
+
+          ctx.drawImage(
+            localLoadedFrames[
+              birdFrame
+            ],
+            localBirdX,
+            localBirdY.current,
+            localBirdWidth,
+            localBirdHeight
+          )
+
+        }
 
       }
 
-      // PLAYER 2
+      /*
+        PLAYER 2
+
+        پرنده مرده تا یک ثانیه بعد از مرگ
+        روی همان نقطه می‌ماند.
+      */
+
+      const showRemoteCorpse =
+        remoteDead &&
+        remoteDeathTime !== null &&
+        Date.now() -
+          remoteDeathTime <
+          1000
 
       if (
-        remoteLoadedFrames[
-          remoteBirdFrame
-        ]
+        !remoteDead ||
+        showRemoteCorpse
       ) {
 
-        ctx.drawImage(
+        if (
           remoteLoadedFrames[
             remoteBirdFrame
-          ],
-          remoteBirdX,
-          remoteBirdY.current,
-          remoteBirdWidth,
-          remoteBirdHeight
-        )
+          ]
+        ) {
+
+          ctx.drawImage(
+            remoteLoadedFrames[
+              remoteBirdFrame
+            ],
+            remoteBirdX,
+            remoteBirdY.current,
+            remoteBirdWidth,
+            remoteBirdHeight
+          )
+
+        }
 
       }
 
@@ -910,7 +1021,10 @@ function MultiplayerFlappyBird({
           localBirdY.current - 8
         )
 
-      } else {
+      }
+      else if (
+        showLocalCorpse
+      ) {
 
         ctx.fillText(
           'DEAD',
@@ -932,7 +1046,10 @@ function MultiplayerFlappyBird({
           remoteBirdY.current - 8
         )
 
-      } else {
+      }
+      else if (
+        showRemoteCorpse
+      ) {
 
         ctx.fillText(
           'DEAD',
@@ -994,38 +1111,58 @@ function MultiplayerFlappyBird({
         remoteDead
       ) {
 
-        ctx.fillStyle =
-          'rgba(0, 0, 0, 0.65)'
+        const now =
+          Date.now()
 
-        ctx.fillRect(
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        )
+        const latestDeathTime =
+          Math.max(
+            localDeathTime || now,
+            remoteDeathTime || now
+          )
 
-        ctx.font =
-          '38px Arial'
+        /*
+          تا یک ثانیه بعد از آخرین مرگ،
+          GAME OVER نمایش داده نمی‌شود.
+        */
 
-        ctx.fillStyle =
-          'white'
+        if (
+          now -
+            latestDeathTime >=
+          1000
+        ) {
 
-        ctx.fillText(
-          'GAME OVER',
-          200,
-          250
-        )
+          ctx.fillStyle =
+            'rgba(0, 0, 0, 0.65)'
 
-        ctx.font =
-          '22px Arial'
+          ctx.fillRect(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          )
 
-        ctx.fillText(
-          `Score: ${score.current}`,
-          200,
-          290
-        )
+          ctx.font =
+            '38px Arial'
 
-        return
+          ctx.fillStyle =
+            'white'
+
+          ctx.fillText(
+            'GAME OVER',
+            200,
+            250
+          )
+
+          ctx.font =
+            '22px Arial'
+
+          ctx.fillText(
+            `Score: ${score.current}`,
+            200,
+            290
+          )
+
+        }
 
       }
 
@@ -1123,12 +1260,14 @@ function MultiplayerFlappyBird({
       )}
 
       {gameOver && (
+
         <button
           className="multiplayerRestartButton"
           onClick={restartGame}
         >
           🔄 RESTART
         </button>
+
       )}
 
       <button
